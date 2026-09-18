@@ -1,98 +1,45 @@
-const navItems = [
-  ['overview', 'Overview', '⌂'],
-  ['create', 'Create Collection', '+'],
-  ['collections', 'My Collections', '▦'],
-  ['drafts', 'Drafts', '◇'],
-  ['settings', 'Settings', '⚙'],
-];
+const NAV_ITEMS = [['overview', 'Overview', '⌂'], ['create', 'Create Collection', '+'], ['collections', 'My Collections', '▦'], ['drafts', 'Drafts', '◇'], ['settings', 'Settings', '⚙']];
+const KEYS = { collections: 'nftpad-collections', drafts: 'nftpad-drafts', settings: 'nftpad-settings' };
+const DEFAULT_SETTINGS = { displayName: '', royalty: '5', network: 'Ethereum — testnet-ready' };
+let editingId = null;
 
-const DEFAULT_FORM = {
-  name: '', symbol: '', description: '', supply: '', royalty: '', wallet: '', network: 'Ethereum — testnet-ready', artworkName: '', artworkUrl: '',
-};
-
-function escapeHtml(value = '') {
-  return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
-}
+const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } };
+const write = (key, value) => localStorage.setItem(key, JSON.stringify(value));
 
 function Navigation() {
-  return `<aside class="dashboard-sidebar">
-    <a class="brand" href="#top"><span class="brand-mark">RN</span><span>RyoNakamura <em>NFTPad</em></span></a>
-    <p class="sidebar-label">Workspace</p>
-    <nav class="dashboard-nav" aria-label="Creator dashboard navigation">
-      ${navItems.map(([id, label, icon]) => `<button class="dashboard-nav-item ${id === 'create' ? 'active' : ''}" type="button" data-panel="${id}"><span>${icon}</span>${label}</button>`).join('')}
-    </nav>
-    <a class="back-link" href="#top">← Back to landing page</a>
-  </aside>`;
+  return `<aside class="dashboard-sidebar"><a class="brand" href="#top"><span class="brand-mark">RN</span><span>RyoNakamura <em>NFTPad</em></span></a><p class="sidebar-label">Workspace</p><nav class="dashboard-nav" aria-label="Creator dashboard navigation">${NAV_ITEMS.map(([id, label, icon]) => `<button class="dashboard-nav-item" data-panel="${id}" type="button"><span>${icon}</span>${label}</button>`).join('')}</nav><a class="back-link" href="#top">← Back to landing page</a></aside>`;
 }
 
-function DashboardContent() {
-  return `<section class="dashboard-content">
-    <header class="dashboard-header"><div><p class="eyebrow">Creator workspace</p><h1>Build something<br /><span>meaningful.</span></h1></div><span class="preview-badge">Preview mode</span></header>
-    <div class="dashboard-notice"><span>◌</span><p><strong>Presentation-only workspace.</strong> Your collection details stay in this browser. Nothing is deployed, minted, or sent to a wallet.</p></div>
-    <div class="dashboard-panel" data-panel-content="create">
-      <div class="panel-heading"><div><p class="eyebrow">Step 01 / Collection details</p><h2>Create Collection</h2></div><span class="panel-step">Draft</span></div>
-      <form id="collection-form" novalidate>
-        <div class="form-grid">
-          <label>Collection name <input name="name" required placeholder="e.g. Fragments of Light" /><small data-error="name"></small></label>
-          <label>Symbol <input name="symbol" required maxlength="10" placeholder="e.g. FOL" /><small data-error="symbol"></small></label>
-          <label class="full-width">Description <textarea name="description" required rows="4" placeholder="Tell collectors what makes this collection special."></textarea><small data-error="description"></small></label>
-          <label>Artwork <span class="optional">Optional for preview</span><input name="artwork" type="file" accept="image/*" /><small class="field-help">Choose an image from your device. It is not uploaded anywhere.</small></label>
-          <label>Total supply <input name="supply" required type="number" min="1" step="1" placeholder="100" /><small data-error="supply"></small></label>
-          <label>Royalty percentage <input name="royalty" required type="number" min="0" max="20" step="0.1" placeholder="5" /><small data-error="royalty"></small></label>
-          <label>Creator wallet address <input name="wallet" required placeholder="Enter a future wallet address" /><small data-error="wallet"></small></label>
-          <label>Network <select name="network"><option>Ethereum — testnet-ready</option><option>Polygon — testnet-ready</option><option>Cosmos — planned</option></select><small class="field-help">Network selection is informational only.</small></label>
-        </div>
-        <div class="form-actions"><button class="button button-primary" type="submit">Preview Collection <span>↗</span></button><button class="button button-secondary" type="button" id="save-draft">Save Local Draft</button></div>
-        <p class="form-status" id="form-status" role="status"></p>
-      </form>
-    </div>
-    <div class="dashboard-panel preview-panel" id="collection-preview"><div class="panel-heading"><div><p class="eyebrow">Step 02 / Review</p><h2>Your preview</h2></div><span class="preview-badge">Not deployed</span></div><div class="preview-card"><div class="preview-art" id="preview-art"><span>Artwork preview</span></div><div class="preview-copy"><p class="eyebrow" id="preview-symbol">SYMBOL</p><h3 id="preview-name">Your collection name</h3><p id="preview-description">Complete the form to see your collection preview here.</p><div class="preview-meta"><span><b id="preview-supply">—</b> supply</span><span><b id="preview-royalty">—</b> royalty</span><span id="preview-network">Network not selected</span></div></div></div></div>
-  </section>`;
+function FormPanel() {
+  return `<div class="dashboard-panel view-panel" data-view="create"><div class="panel-heading"><div><p class="eyebrow">Collection workspace</p><h2>Create Collection</h2></div><span class="panel-step">Local only</span></div><form id="collection-form" novalidate><div class="form-grid"><label>Collection name<input name="name" required placeholder="e.g. Fragments of Light" /><small data-error="name"></small></label><label>Symbol<input name="symbol" required maxlength="10" placeholder="e.g. FOL" /><small data-error="symbol"></small></label><label class="full-width">Description<textarea name="description" required rows="4" placeholder="Tell collectors what makes this collection special."></textarea><small data-error="description"></small></label><label>Artwork <span class="optional">Local preview only</span><input name="artwork" type="file" accept="image/png,image/jpeg,image/webp,image/gif" /><small class="field-help">PNG, JPG, WEBP, or GIF. Maximum 5 MB. Nothing is uploaded.</small></label><label>Total supply<input name="supply" required type="number" min="1" step="1" placeholder="100" /><small data-error="supply"></small></label><label>Royalty percentage<input name="royalty" required type="number" min="0" max="20" step="0.1" placeholder="5" /><small data-error="royalty"></small></label><label>Creator wallet address<input name="wallet" required placeholder="Future wallet address" /><small data-error="wallet"></small></label><label>Network<select name="network"><option>Ethereum — testnet-ready</option><option>Polygon — testnet-ready</option><option>Cosmos — planned</option></select><small class="field-help">Informational only; no network connection is made.</small></label></div><div class="form-actions"><button class="button button-primary" type="submit">Update Preview ↗</button><button class="button button-secondary" type="button" id="save-collection">Save Collection Locally</button><button class="button button-secondary" type="button" id="save-draft">Save Draft</button></div><p class="form-status" id="form-status" role="status"></p></form></div>`;
 }
 
-export function Dashboard() {
-  return `<div class="dashboard-shell">${Navigation()}${DashboardContent()}</div>`;
+function PreviewPanel() {
+  return `<div class="dashboard-panel preview-panel view-panel" data-view="create"><div class="panel-heading"><div><p class="eyebrow">Collection preview</p><h2>Review your work</h2></div><span class="preview-badge">Not deployed</span></div><div class="preview-card"><div class="preview-art" id="preview-art"><span>Artwork preview</span></div><div class="preview-copy"><p class="eyebrow" id="preview-symbol">SYMBOL</p><h3 id="preview-name">Your collection name</h3><p id="preview-description">Complete the form to see your preview.</p><div class="preview-meta"><span><b id="preview-supply">—</b> supply</span><span><b id="preview-royalty">—</b> royalty</span><span id="preview-network">Network not selected</span></div><p class="preview-creator">Creator: <b id="preview-creator">Not set</b></p><p class="status-text">Status: <b>Local preview</b></p></div></div></div>`;
 }
 
-function readForm(form) {
-  const data = new FormData(form);
-  return { name: data.get('name').trim(), symbol: data.get('symbol').trim().toUpperCase(), description: data.get('description').trim(), supply: data.get('supply'), royalty: data.get('royalty'), wallet: data.get('wallet').trim(), network: data.get('network'), artwork: form.elements.artwork.files[0] || null };
+function ListPanel(type) {
+  return `<div class="dashboard-panel view-panel list-panel" data-view="${type}"><div class="panel-heading"><div><p class="eyebrow">Local workspace</p><h2>${type === 'collections' ? 'My Collections' : 'Drafts'}</h2></div><span class="preview-badge">Browser storage</span></div><div id="${type}-list" class="saved-list"></div></div>`;
 }
 
-function validate(data) {
-  const errors = {};
-  ['name', 'symbol', 'description', 'wallet'].forEach((field) => { if (!data[field]) errors[field] = 'This field is required.'; });
-  if (!data.supply || Number(data.supply) < 1 || !Number.isInteger(Number(data.supply))) errors.supply = 'Supply must be a whole number greater than zero.';
-  if (data.royalty === '' || Number(data.royalty) < 0 || Number(data.royalty) > 20) errors.royalty = 'Royalty must be between 0% and 20%.';
-  return errors;
-}
+function SettingsPanel() { const settings = { ...DEFAULT_SETTINGS, ...read(KEYS.settings, {}) }; return `<div class="dashboard-panel view-panel" data-view="settings"><div class="panel-heading"><div><p class="eyebrow">Creator preferences</p><h2>Settings</h2></div></div><form id="settings-form" class="settings-form" novalidate><label>Creator display name<input name="displayName" value="${escapeHtml(settings.displayName)}" placeholder="Your creator name" /></label><label>Default royalty percentage<input name="royalty" type="number" min="0" max="20" step="0.1" value="${escapeHtml(settings.royalty)}" /><small id="settings-error"></small></label><label>Default network<select name="network">${['Ethereum — testnet-ready', 'Polygon — testnet-ready', 'Cosmos — planned'].map((n) => `<option ${n === settings.network ? 'selected' : ''}>${n}</option>`).join('')}</select></label><button class="button button-primary" type="submit">Save Settings</button><p class="form-status" id="settings-status" role="status"></p></form></div>`; }
 
-function updatePreview(data) {
-  document.querySelector('#preview-name').textContent = data.name || 'Your collection name';
-  document.querySelector('#preview-symbol').textContent = data.symbol || 'SYMBOL';
-  document.querySelector('#preview-description').textContent = data.description || 'Complete the form to see your collection preview here.';
-  document.querySelector('#preview-supply').textContent = data.supply || '—';
-  document.querySelector('#preview-royalty').textContent = data.royalty ? `${data.royalty}%` : '—';
-  document.querySelector('#preview-network').textContent = data.network || 'Network not selected';
-  const art = document.querySelector('#preview-art');
-  if (data.artwork) { const reader = new FileReader(); reader.onload = () => { art.style.backgroundImage = `url(${reader.result})`; art.textContent = ''; }; reader.readAsDataURL(data.artwork); }
-}
+function OverviewPanel() { return `<div class="dashboard-panel view-panel" data-view="overview"><p class="eyebrow">Creator workspace</p><h2>Welcome to your studio.</h2><p class="dashboard-copy">Create a local collection preview, save drafts, and refine your ideas before any future onchain step.</p><div class="overview-actions"><button class="button button-primary" data-open-panel="create">Create Collection</button><button class="button button-secondary" data-open-panel="collections">View My Collections</button></div></div>`; }
 
-export function bindDashboard() {
-  const form = document.querySelector('#collection-form');
-  if (!form) return;
-  document.querySelectorAll('.dashboard-nav-item').forEach((item) => item.addEventListener('click', () => {
-    document.querySelectorAll('.dashboard-nav-item').forEach((nav) => nav.classList.remove('active'));
-    item.classList.add('active');
-    if (item.dataset.panel !== 'create') window.alert(`${item.textContent.trim()} will be available in a future version.`);
-  }));
-  form.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const data = readForm(form); const errors = validate(data);
-    document.querySelectorAll('[data-error]').forEach((element) => { element.textContent = errors[element.dataset.error] || ''; });
-    if (Object.keys(errors).length) { document.querySelector('#form-status').textContent = 'Please correct the highlighted fields before previewing.'; return; }
-    updatePreview(data); document.querySelector('#form-status').textContent = 'Preview updated. This collection has not been deployed.'; document.querySelector('#collection-preview').scrollIntoView({ behavior: 'smooth' });
-  });
-  document.querySelector('#save-draft').addEventListener('click', () => { const data = readForm(form); localStorage.setItem('nftpad-draft', JSON.stringify({ ...data, artwork: undefined })); document.querySelector('#form-status').textContent = 'Draft saved locally in this browser only.'; });
-  form.addEventListener('input', () => updatePreview(readForm(form)));
+export function Dashboard() { return `<div class="dashboard-shell">${Navigation()}<main class="dashboard-content"><header class="dashboard-header"><div><p class="eyebrow">Creator workspace</p><h1>Build something<br /><span>meaningful.</span></h1></div><span class="preview-badge">V0.3 / Local mode</span></header><div class="dashboard-notice"><span>◌</span><p><strong>Presentation-only workspace.</strong> Details and artwork previews stay in this browser. Nothing is deployed, minted, uploaded, or sent to a wallet.</p></div><div id="dashboard-views">${OverviewPanel()}${FormPanel()}${PreviewPanel()}${ListPanel('collections')}${ListPanel('drafts')}${SettingsPanel()}</div></main></div>`; }
+
+function formData(form) { const data = new FormData(form); return { id: editingId || crypto.randomUUID(), name: data.get('name').trim(), symbol: data.get('symbol').trim().toUpperCase(), description: data.get('description').trim(), supply: data.get('supply'), royalty: data.get('royalty'), wallet: data.get('wallet').trim(), network: data.get('network'), artworkName: '', artworkUrl: '', status: 'Local draft', creatorName: read(KEYS.settings, DEFAULT_SETTINGS).displayName || 'Unnamed creator' }; }
+function validate(data) { const errors = {}; ['name', 'symbol', 'description', 'wallet'].forEach((key) => { if (!data[key]) errors[key] = 'This field is required.'; }); if (!data.supply || !Number.isInteger(Number(data.supply)) || Number(data.supply) < 1) errors.supply = 'Supply must be a whole number greater than zero.'; if (data.royalty === '' || Number(data.royalty) < 0 || Number(data.royalty) > 20) errors.royalty = 'Royalty must be between 0% and 20%.'; return errors; }
+function updatePreview(data) { ['name', 'symbol', 'description', 'supply', 'network'].forEach((key) => { const element = document.querySelector(`#preview-${key}`); if (element) element.textContent = data[key] || (key === 'name' ? 'Your collection name' : key === 'description' ? 'Complete the form to see your preview.' : '—'); }); document.querySelector('#preview-royalty').textContent = data.royalty ? `${data.royalty}%` : '—'; document.querySelector('#preview-creator').textContent = data.creatorName; }
+function setArtwork(file, data, done) { if (!file) return done(data); if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) return done(data, 'Please choose a PNG, JPG, WEBP, or GIF image.'); if (file.size > 5 * 1024 * 1024) return done(data, 'Artwork must be 5 MB or smaller.'); const reader = new FileReader(); reader.onload = () => done({ ...data, artworkName: file.name, artworkUrl: reader.result }); reader.readAsDataURL(file); }
+function renderList(type) { const items = read(KEYS[type], []); const target = document.querySelector(`#${type}-list`); if (!target) return; target.innerHTML = items.length ? items.map((item) => `<article class="saved-card"><div class="saved-thumb" style="${item.artworkUrl ? `background-image:url('${item.artworkUrl}')` : ''}">${item.artworkUrl ? '' : '◇'}</div><div class="saved-info"><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.symbol)} · ${escapeHtml(item.supply)} supply �� ${escapeHtml(item.royalty)}% royalty</p><p>${escapeHtml(item.network)} · <b>${escapeHtml(item.status || 'Local')}</b></p></div><div class="saved-actions"><button class="button button-secondary" data-preview-id="${item.id}">Preview</button>${type === 'drafts' ? `<button class="button button-secondary" data-edit-id="${item.id}">Continue Editing</button><button class="danger-button" data-delete-id="${item.id}">Delete Draft</button>` : `<button class="button button-secondary" data-edit-id="${item.id}">Edit Locally</button>`}</div></article>`).join('') : `<div class="empty-state"><span>◇</span><p>No local ${type} yet.</p><small>Create something and save it in this browser to see it here.</small></div>`; }
+
+export function bindDashboard() { const form = document.querySelector('#collection-form'); const show = (panel) => { document.querySelectorAll('.view-panel').forEach((view) => { view.hidden = view.dataset.view !== panel || (panel === 'create' && view.classList.contains('preview-panel') ? false : false); }); document.querySelectorAll('.dashboard-nav-item').forEach((item) => item.classList.toggle('active', item.dataset.panel === panel)); renderList('collections'); renderList('drafts'); }; show('overview'); document.querySelectorAll('.dashboard-nav-item').forEach((item) => item.addEventListener('click', () => show(item.dataset.panel))); document.querySelectorAll('[data-open-panel]').forEach((button) => button.addEventListener('click', () => show(button.dataset.openPanel)));
+  const settingsForm = document.querySelector('#settings-form'); settingsForm.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(settingsForm); const royalty = Number(data.get('royalty')); const error = document.querySelector('#settings-error'); if (!Number.isFinite(royalty) || royalty < 0 || royalty > 20) { error.textContent = 'Royalty must be between 0% and 20%.'; return; } write(KEYS.settings, { displayName: data.get('displayName').trim(), royalty: String(royalty), network: data.get('network') }); document.querySelector('#settings-status').textContent = 'Settings saved locally.'; });
+  const update = () => { const data = formData(form); updatePreview(data); }; form.addEventListener('input', update); form.elements.artwork.addEventListener('change', () => { const file = form.elements.artwork.files[0]; setArtwork(file, formData(form), (data, error) => { if (error) { document.querySelector('#form-status').textContent = error; return; } updatePreview(data); const art = document.querySelector('#preview-art'); art.style.backgroundImage = `url('${data.artworkUrl}')`; art.textContent = ''; }); });
+  form.addEventListener('submit', (event) => { event.preventDefault(); const data = formData(form); const errors = validate(data); document.querySelectorAll('[data-error]').forEach((el) => { el.textContent = errors[el.dataset.error] || ''; }); if (Object.keys(errors).length) { document.querySelector('#form-status').textContent = 'Please correct the highlighted fields.'; return; } updatePreview(data); document.querySelector('#form-status').textContent = 'Preview updated. Nothing has been deployed.'; });
+  const save = (key, status) => { const data = formData(form); const errors = validate(data); if (Object.keys(errors).length) { document.querySelector('#form-status').textContent = 'Complete the required fields before saving.'; return; } const list = read(KEYS[key], []).filter((item) => item.id !== data.id); write(KEYS[key], [...list, data]); document.querySelector('#form-status').textContent = status; renderList(key); };
+  document.querySelector('#save-collection').addEventListener('click', () => save('collections', 'Collection saved locally. It has not been deployed.')); document.querySelector('#save-draft').addEventListener('click', () => save('drafts', 'Draft saved locally in this browser.'));
+  document.querySelector('#dashboard-views').addEventListener('click', (event) => { const button = event.target.closest('button'); if (!button) return; const id = button.dataset.editId || button.dataset.previewId; if (id) { const item = [...read(KEYS.collections, []), ...read(KEYS.drafts, [])].find((entry) => entry.id === id); if (item && button.dataset.editId) { editingId = item.id; Object.entries(item).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; }); show('create'); updatePreview(item); } if (item && button.dataset.previewId) { updatePreview(item); show('create'); document.querySelector('#collection-preview').scrollIntoView({ behavior: 'smooth' }); } } if (button.dataset.deleteId && window.confirm('Delete this local draft? This cannot be undone.')) { write(KEYS.drafts, read(KEYS.drafts, []).filter((item) => item.id !== button.dataset.deleteId)); renderList('drafts'); } });
 }

@@ -1,24 +1,23 @@
 # RyoNakamura NFTPad
 
-The first foundation for a creator-focused NFT platform: a responsive landing page for creators who want to create, launch, and mint collections.
+RyoNakamura NFTPad is a native JavaScript presentation foundation for a creator-focused NFT platform.
 
-## Files
+## V0.3 creator workspace
 
-- `index.html` is the browser entry point and provides the semantic page shell.
-- `src/components.js` contains small reusable functions that render each page section.
-- `src/app.js` assembles the sections and contains the temporary UI-only button behavior.
-- `src/styles.css` contains the responsive dark, futuristic visual system.
+Open `#dashboard` to use the local Creator Dashboard. It includes Overview, Create Collection, My Collections, Drafts, and Settings. Collection records, drafts, creator preferences, and selected artwork previews use browser `localStorage` only. Artwork is converted to a local browser preview; it is never uploaded.
 
-## Run it locally
+The dashboard validates required fields, whole-number supply, royalties from 0–20%, and artwork type/size (PNG, JPG, WEBP, or GIF up to 5 MB). Saved records are explicitly local and are not blockchain collections.
 
-Because the page uses JavaScript modules, serve the repository with a small local web server instead of opening `index.html` directly. For example, if Python is installed:
+## Run locally
+
+Serve the static files with a local server:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000` in a browser.
+Then visit `http://localhost:8000` for the landing page or `http://localhost:8000/#dashboard` for the workspace.
 
 ## Deliberate limitations
 
-This first step does **not** connect a wallet, create tokens, call an NFT contract, show wallet balances, or display fake transaction/collection data. The buttons show a temporary message only. Later, we can add a wallet adapter and contract integration behind clear interfaces without redesigning the page.
+There is no wallet connection, smart contract, token creation, NFT minting, IPFS upload, marketplace, blockchain transaction, or fake blockchain data. A browser's local storage can be cleared by the user and is not a production database.
