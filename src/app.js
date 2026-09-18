@@ -1,14 +1,25 @@
 import { Collections, Features, Footer, Header, Hero, HowItWorks } from './components.js';
+import { Dashboard } from './dashboard.js';
 
 const app = document.querySelector('#app');
 
-app.innerHTML = [Header(), Hero(), HowItWorks(), Features(), Collections(), Footer()].join('');
+function LandingPage() {
+  return [Header(), Hero(), HowItWorks(), Features(), Collections(), Footer()].join('');
+}
 
-// This is intentionally only a visual placeholder. Wallet and contract
-// integrations will be added in a later step, after their interfaces are chosen.
-document.querySelectorAll('[data-coming-soon]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const feature = button.dataset.comingSoon;
-    window.alert(`${feature} will be available in a future version.`);
-  });
-});
+function render() {
+  app.innerHTML = window.location.hash === '#dashboard' ? Dashboard() : LandingPage();
+
+  if (window.location.hash === '#dashboard') {
+    window.dispatchEvent(new CustomEvent('dashboard-ready'));
+  } else {
+    document.querySelectorAll('[data-coming-soon]').forEach((button) => {
+      button.addEventListener('click', () => {
+        window.alert(`${button.dataset.comingSoon} will be available in a future version.`);
+      });
+    });
+  }
+}
+
+window.addEventListener('hashchange', render);
+render();
